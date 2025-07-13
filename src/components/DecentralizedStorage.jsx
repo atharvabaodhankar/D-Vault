@@ -8,6 +8,7 @@ const DecentralizedStorage = () => {
   const [selectedFile, setSelectedFile] = useState(null);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [deletingFile, setDeletingFile] = useState(null);
+  const [loading, setLoading] = useState(false);
 
   // Load API keys from localStorage on component mount
   useEffect(() => {
@@ -16,19 +17,69 @@ const DecentralizedStorage = () => {
     
     if (savedPinataKey) setPinataApiKey(savedPinataKey);
     if (savedPinataSecret) setPinataSecretKey(savedPinataSecret);
-    
-    // Load saved files
-    const savedFiles = localStorage.getItem('uploadedFiles');
-    if (savedFiles) {
-      setFiles(JSON.parse(savedFiles));
-    }
   }, []);
+
+  // Fetch all files from Pinata
+  const fetchFilesFromPinata = async () => {
+    if (!pinataApiKey || !pinataSecretKey) {
+      setFiles([]);
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const response = await fetch('https://api.pinata.cloud/data/pinList?status=pinned', {
+        method: 'GET',
+        headers: {
+          'pinata_api_key': pinataApiKey,
+          'pinata_secret_api_key': pinataSecretKey
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch files: ${response.status}`);
+      }
+
+      const result = await response.json();
+      
+      // Transform Pinata response to our file format
+      const transformedFiles = result.rows.map((item, index) => ({
+        id: Date.now() + index, // Generate unique ID
+        name: item.metadata?.name || `File ${index + 1}`,
+        size: item.size || 0,
+        type: item.metadata?.keyvalues?.type || 'unknown',
+        uploadDate: item.date_pinned,
+        upload: {
+          provider: 'Pinata',
+          hash: item.ipfs_pin_hash,
+          url: `https://gateway.pinata.cloud/ipfs/${item.ipfs_pin_hash}`,
+          gateway: `https://gateway.pinata.cloud/ipfs/${item.ipfs_pin_hash}`
+        }
+      }));
+
+      setFiles(transformedFiles);
+    } catch (error) {
+      console.error('Failed to fetch files:', error);
+      setFiles([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Fetch files when API keys are available
+  useEffect(() => {
+    if (pinataApiKey && pinataSecretKey) {
+      fetchFilesFromPinata();
+    }
+  }, [pinataApiKey, pinataSecretKey]);
 
   // Save API keys to localStorage
   const saveApiKeys = () => {
     localStorage.setItem('pinataApiKey', pinataApiKey);
     localStorage.setItem('pinataSecretKey', pinataSecretKey);
     alert('API keys saved successfully!');
+    // Fetch files after saving keys
+    fetchFilesFromPinata();
   };
 
   // Upload to Pinata
@@ -96,25 +147,14 @@ const DecentralizedStorage = () => {
 
     try {
       setUploadProgress(50);
-      const pinataResult = await uploadToPinata(selectedFile);
+      await uploadToPinata(selectedFile);
       setUploadProgress(100);
-
-      // Add to files list
-      const newFileEntry = {
-        id: Date.now(),
-        name: selectedFile.name,
-        size: selectedFile.size,
-        type: selectedFile.type,
-        uploadDate: new Date().toISOString(),
-        upload: pinataResult
-      };
-
-      const updatedFiles = [newFileEntry, ...files];
-      setFiles(updatedFiles);
-      localStorage.setItem('uploadedFiles', JSON.stringify(updatedFiles));
 
       setSelectedFile(null);
       alert('File uploaded successfully to Pinata!');
+      
+      // Refresh the file list from Pinata
+      await fetchFilesFromPinata();
     } catch (error) {
       console.error('Upload failed:', error);
       alert(`Upload failed: ${error.message}`);
@@ -132,7 +172,7 @@ const DecentralizedStorage = () => {
     }
   };
 
-  // Delete file from both Pinata and local storage
+  // Delete file from Pinata
   const deleteFile = async (fileId) => {
     const fileToDelete = files.find(file => file.id === fileId);
     if (!fileToDelete) return;
@@ -148,12 +188,10 @@ const DecentralizedStorage = () => {
       // Delete from Pinata
       await deleteFromPinata(fileToDelete.upload.hash);
       
-      // Remove from local storage
-      const updatedFiles = files.filter(file => file.id !== fileId);
-      setFiles(updatedFiles);
-      localStorage.setItem('uploadedFiles', JSON.stringify(updatedFiles));
-      
       alert('File deleted successfully from Pinata!');
+      
+      // Refresh the file list from Pinata
+      await fetchFilesFromPinata();
     } catch (error) {
       console.error('Delete failed:', error);
       alert(`Delete failed: ${error.message}`);
@@ -254,9 +292,23 @@ const DecentralizedStorage = () => {
 
         {/* Files List */}
         <div className="bg-white rounded-lg shadow-md p-6">
-          <h2 className="text-2xl font-semibold mb-4">Uploaded Files</h2>
-          {files.length === 0 ? (
-            <p className="text-gray-500 text-center py-8">No files uploaded yet.</p>
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-2xl font-semibold">Your Files on Pinata</h2>
+            <button
+              onClick={fetchFilesFromPinata}
+              disabled={loading}
+              className="bg-gray-600 text-white px-4 py-2 rounded-md hover:bg-gray-700 disabled:opacity-50 transition-colors"
+            >
+              {loading ? 'Refreshing...' : 'Refresh Files'}
+            </button>
+          </div>
+          
+          {!pinataApiKey || !pinataSecretKey ? (
+            <p className="text-gray-500 text-center py-8">Please save your API keys to view files.</p>
+          ) : loading ? (
+            <p className="text-gray-500 text-center py-8">Loading files from Pinata...</p>
+          ) : files.length === 0 ? (
+            <p className="text-gray-500 text-center py-8">No files found on Pinata.</p>
           ) : (
             <div className="space-y-4">
               {files.map((file) => (
