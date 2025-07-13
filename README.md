@@ -4,7 +4,7 @@ A modern web application for decentralized file storage using Pinata. Upload fil
 
 ## Features
 
-- 🔐 **Secure API Key Management**: Store your Pinata API key securely
+- 🔐 **Secure API Key Management**: Store your Pinata API Key and Secret Key securely
 - 📁 **IPFS Storage**: Upload files directly to Pinata's IPFS network
 - 🔗 **Public Links**: Get shareable public links for all uploaded files
 - 📊 **File Management**: View, copy links, and delete uploaded files
@@ -38,19 +38,21 @@ npm run dev
 
 4. Open your browser and navigate to `http://localhost:5173`
 
-## API Key Setup
+## API Keys Setup
 
-### Pinata API Key
+### Pinata API Keys
 1. Go to [Pinata](https://app.pinata.cloud/)
 2. Create an account or sign in
 3. Navigate to API Keys section
 4. Create a new API key
-5. Copy the JWT token
+5. Copy both the **API Key** and **Secret Key**
+
+**Important**: You need both the API Key and Secret Key for authentication.
 
 ## Usage
 
-1. **Configure API Key**: Enter your Pinata API key in the configuration section
-2. **Save Key**: Click "Save API Key" to store it locally
+1. **Configure API Keys**: Enter your Pinata API Key and Secret Key in the configuration section
+2. **Save Keys**: Click "Save API Keys" to store them locally
 3. **Upload Files**: Select a file and click "Upload to Pinata"
 4. **Manage Files**: View uploaded files, copy public links, or delete files from the list
 
@@ -77,8 +79,8 @@ npm run dev
 - Persistent storage using localStorage
 
 ### Security
-- API key is stored locally in the browser
-- Password is masked in the UI
+- API keys are stored locally in the browser
+- Passwords are masked in the UI
 - No server-side storage of sensitive data
 
 ## Technical Stack

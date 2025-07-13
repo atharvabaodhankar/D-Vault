@@ -2,16 +2,19 @@ import { useState, useEffect } from 'react';
 
 const DecentralizedStorage = () => {
   const [pinataApiKey, setPinataApiKey] = useState('');
+  const [pinataSecretKey, setPinataSecretKey] = useState('');
   const [files, setFiles] = useState([]);
   const [uploading, setUploading] = useState(false);
   const [selectedFile, setSelectedFile] = useState(null);
   const [uploadProgress, setUploadProgress] = useState(0);
 
-  // Load API key from localStorage on component mount
+  // Load API keys from localStorage on component mount
   useEffect(() => {
     const savedPinataKey = localStorage.getItem('pinataApiKey');
+    const savedPinataSecret = localStorage.getItem('pinataSecretKey');
     
     if (savedPinataKey) setPinataApiKey(savedPinataKey);
+    if (savedPinataSecret) setPinataSecretKey(savedPinataSecret);
     
     // Load saved files
     const savedFiles = localStorage.getItem('uploadedFiles');
@@ -20,10 +23,11 @@ const DecentralizedStorage = () => {
     }
   }, []);
 
-  // Save API key to localStorage
-  const saveApiKey = () => {
+  // Save API keys to localStorage
+  const saveApiKeys = () => {
     localStorage.setItem('pinataApiKey', pinataApiKey);
-    alert('API key saved successfully!');
+    localStorage.setItem('pinataSecretKey', pinataSecretKey);
+    alert('API keys saved successfully!');
   };
 
   // Upload to Pinata
@@ -34,13 +38,16 @@ const DecentralizedStorage = () => {
     const response = await fetch('https://api.pinata.cloud/pinning/pinFileToIPFS', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${pinataApiKey}`
+        'pinata_api_key': pinataApiKey,
+        'pinata_secret_api_key': pinataSecretKey
       },
       body: formData
     });
 
     if (!response.ok) {
-      throw new Error('Failed to upload to Pinata');
+      const errorText = await response.text();
+      console.error('Pinata API Error:', response.status, errorText);
+      throw new Error(`Failed to upload to Pinata: ${response.status} - ${errorText}`);
     }
 
     const result = await response.json();
@@ -59,8 +66,8 @@ const DecentralizedStorage = () => {
       return;
     }
 
-    if (!pinataApiKey) {
-      alert('Please provide your Pinata API key!');
+    if (!pinataApiKey || !pinataSecretKey) {
+      alert('Please provide both Pinata API Key and Secret Key!');
       return;
     }
 
@@ -90,7 +97,7 @@ const DecentralizedStorage = () => {
       alert('File uploaded successfully to Pinata!');
     } catch (error) {
       console.error('Upload failed:', error);
-      alert('Upload failed. Please check your API key and try again.');
+      alert(`Upload failed: ${error.message}`);
     } finally {
       setUploading(false);
       setUploadProgress(0);
@@ -126,26 +133,40 @@ const DecentralizedStorage = () => {
           <p className="text-gray-600">Decentralized File Storage with Pinata</p>
         </div>
 
-        {/* API Key Configuration */}
+        {/* API Keys Configuration */}
         <div className="bg-white rounded-lg shadow-md p-6 mb-8">
           <h2 className="text-2xl font-semibold mb-4">Pinata Configuration</h2>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Pinata API Key
-            </label>
-            <input
-              type="password"
-              value={pinataApiKey}
-              onChange={(e) => setPinataApiKey(e.target.value)}
-              placeholder="Enter your Pinata API key"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
+          <div className="grid md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Pinata API Key
+              </label>
+              <input
+                type="password"
+                value={pinataApiKey}
+                onChange={(e) => setPinataApiKey(e.target.value)}
+                placeholder="Enter your Pinata API key"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                API Secret Key
+              </label>
+              <input
+                type="password"
+                value={pinataSecretKey}
+                onChange={(e) => setPinataSecretKey(e.target.value)}
+                placeholder="Enter your Pinata Secret key"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
           </div>
           <button
-            onClick={saveApiKey}
+            onClick={saveApiKeys}
             className="mt-4 bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors"
           >
-            Save API Key
+            Save API Keys
           </button>
         </div>
 
