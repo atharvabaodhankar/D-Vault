@@ -24,7 +24,7 @@ A stunning, modern web application for decentralized file storage using Pinata. 
 
 1. Clone the repository:
 ```bash
-git clone <repository-url>
+git clone https://github.com/atharvabaodhankar/D-Vault.git
 cd D-Vault
 ```
 
