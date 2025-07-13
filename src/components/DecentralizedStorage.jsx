@@ -7,6 +7,7 @@ const DecentralizedStorage = () => {
   const [uploading, setUploading] = useState(false);
   const [selectedFile, setSelectedFile] = useState(null);
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [deletingFile, setDeletingFile] = useState(null);
 
   // Load API keys from localStorage on component mount
   useEffect(() => {
@@ -57,6 +58,25 @@ const DecentralizedStorage = () => {
       url: `https://gateway.pinata.cloud/ipfs/${result.IpfsHash}`,
       gateway: `https://gateway.pinata.cloud/ipfs/${result.IpfsHash}`
     };
+  };
+
+  // Delete from Pinata
+  const deleteFromPinata = async (hash) => {
+    const response = await fetch(`https://api.pinata.cloud/pinning/unpin/${hash}`, {
+      method: 'DELETE',
+      headers: {
+        'pinata_api_key': pinataApiKey,
+        'pinata_secret_api_key': pinataSecretKey
+      }
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Pinata Delete API Error:', response.status, errorText);
+      throw new Error(`Failed to delete from Pinata: ${response.status} - ${errorText}`);
+    }
+
+    return true;
   };
 
   // Handle file upload
@@ -112,11 +132,34 @@ const DecentralizedStorage = () => {
     }
   };
 
-  // Delete file from list
-  const deleteFile = (fileId) => {
-    const updatedFiles = files.filter(file => file.id !== fileId);
-    setFiles(updatedFiles);
-    localStorage.setItem('uploadedFiles', JSON.stringify(updatedFiles));
+  // Delete file from both Pinata and local storage
+  const deleteFile = async (fileId) => {
+    const fileToDelete = files.find(file => file.id === fileId);
+    if (!fileToDelete) return;
+
+    if (!pinataApiKey || !pinataSecretKey) {
+      alert('Please provide both Pinata API Key and Secret Key to delete files!');
+      return;
+    }
+
+    setDeletingFile(fileId);
+
+    try {
+      // Delete from Pinata
+      await deleteFromPinata(fileToDelete.upload.hash);
+      
+      // Remove from local storage
+      const updatedFiles = files.filter(file => file.id !== fileId);
+      setFiles(updatedFiles);
+      localStorage.setItem('uploadedFiles', JSON.stringify(updatedFiles));
+      
+      alert('File deleted successfully from Pinata!');
+    } catch (error) {
+      console.error('Delete failed:', error);
+      alert(`Delete failed: ${error.message}`);
+    } finally {
+      setDeletingFile(null);
+    }
   };
 
   // Copy link to clipboard
@@ -228,9 +271,10 @@ const DecentralizedStorage = () => {
                     </div>
                     <button
                       onClick={() => deleteFile(file.id)}
-                      className="text-red-600 hover:text-red-800 text-sm"
+                      disabled={deletingFile === file.id}
+                      className="text-red-600 hover:text-red-800 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      Delete
+                      {deletingFile === file.id ? 'Deleting...' : 'Delete'}
                     </button>
                   </div>
                   
