@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import Modal from './Modal';
 
 const DecentralizedStorage = () => {
   const [pinataApiKey, setPinataApiKey] = useState('');
@@ -10,6 +11,34 @@ const DecentralizedStorage = () => {
   const [deletingFile, setDeletingFile] = useState(null);
   const [loading, setLoading] = useState(false);
   const [showInstructions, setShowInstructions] = useState(false);
+  
+  // Modal states
+  const [modal, setModal] = useState({
+    isOpen: false,
+    title: '',
+    message: '',
+    type: 'info'
+  });
+
+  // Show modal helper function
+  const showModal = (title, message, type = 'info') => {
+    setModal({
+      isOpen: true,
+      title,
+      message,
+      type
+    });
+  };
+
+  // Close modal helper function
+  const closeModal = () => {
+    setModal({
+      isOpen: false,
+      title: '',
+      message: '',
+      type: 'info'
+    });
+  };
 
   // Load API keys from localStorage on component mount
   useEffect(() => {
@@ -78,7 +107,7 @@ const DecentralizedStorage = () => {
   const saveApiKeys = () => {
     localStorage.setItem('pinataApiKey', pinataApiKey);
     localStorage.setItem('pinataSecretKey', pinataSecretKey);
-    alert('API keys saved successfully!');
+    showModal('Keys Saved!', 'Your API keys have been saved successfully. Your files will now load automatically.', 'success');
     // Fetch files after saving keys
     fetchFilesFromPinata();
   };
@@ -134,12 +163,12 @@ const DecentralizedStorage = () => {
   // Handle file upload
   const handleFileUpload = async () => {
     if (!selectedFile) {
-      alert('Please select a file first!');
+      showModal('No File Selected', 'Please select a file first before uploading.', 'warning');
       return;
     }
 
     if (!pinataApiKey || !pinataSecretKey) {
-      alert('Please provide both Pinata API Key and Secret Key!');
+      showModal('API Keys Required', 'Please provide both Pinata API Key and Secret Key to upload files.', 'warning');
       return;
     }
 
@@ -152,13 +181,13 @@ const DecentralizedStorage = () => {
       setUploadProgress(100);
 
       setSelectedFile(null);
-      alert('File uploaded successfully to Pinata!');
+      showModal('Upload Successful!', 'Your file has been uploaded to IPFS successfully! You can now share the public link with anyone.', 'success');
       
       // Refresh the file list from Pinata
       await fetchFilesFromPinata();
     } catch (error) {
       console.error('Upload failed:', error);
-      alert(`Upload failed: ${error.message}`);
+      showModal('Upload Failed', `Upload failed: ${error.message}. Please check your API keys and try again.`, 'error');
     } finally {
       setUploading(false);
       setUploadProgress(0);
@@ -179,7 +208,7 @@ const DecentralizedStorage = () => {
     if (!fileToDelete) return;
 
     if (!pinataApiKey || !pinataSecretKey) {
-      alert('Please provide both Pinata API Key and Secret Key to delete files!');
+      showModal('API Keys Required', 'Please provide both Pinata API Key and Secret Key to delete files.', 'warning');
       return;
     }
 
@@ -189,13 +218,13 @@ const DecentralizedStorage = () => {
       // Delete from Pinata
       await deleteFromPinata(fileToDelete.upload.hash);
       
-      alert('File deleted successfully from Pinata!');
+      showModal('File Deleted!', 'The file has been successfully removed from IPFS.', 'success');
       
       // Refresh the file list from Pinata
       await fetchFilesFromPinata();
     } catch (error) {
       console.error('Delete failed:', error);
-      alert(`Delete failed: ${error.message}`);
+      showModal('Delete Failed', `Failed to delete file: ${error.message}. Please try again.`, 'error');
     } finally {
       setDeletingFile(null);
     }
@@ -204,7 +233,7 @@ const DecentralizedStorage = () => {
   // Copy link to clipboard
   const copyToClipboard = (text) => {
     navigator.clipboard.writeText(text);
-    alert('Link copied to clipboard!');
+    showModal('Link Copied!', 'The file link has been copied to your clipboard. You can now paste it anywhere!', 'success');
   };
 
   return (
@@ -473,6 +502,15 @@ const DecentralizedStorage = () => {
           )}
         </div>
       </div>
+
+      {/* Modal */}
+      <Modal
+        isOpen={modal.isOpen}
+        onClose={closeModal}
+        title={modal.title}
+        message={modal.message}
+        type={modal.type}
+      />
 
       <style jsx>{`
         @keyframes blob {
